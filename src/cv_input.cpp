@@ -11,7 +11,8 @@
 #include "colours.h"
 #include "submenuitem.h"
 
-#include "devices/ADCPimoroni24v.h"
+//#include "devices/ADCPimoroni24v.h"
+#include "voltage_sources/ArduinoPinVoltageSource.h"
 
 #include "parameter_inputs/VirtualParameterInput.h"
 
@@ -40,7 +41,11 @@ void setup_cv_input() {
     Wire.begin();
 
     #ifdef ENABLE_CV_INPUT
-        parameter_manager->addADCDevice(new ADCPimoroni24v(ENABLE_CV_INPUT, &Wire, 5.0));
+        //parameter_manager->addADCDevice(new ADCPimoroni24v(ENABLE_CV_INPUT, &Wire, 5.0));
+        //parameter_manager->addADCDevice(new ArduinoPinVoltageSource(A0, 3.3));
+        parameter_manager->addVoltageSource(new ArduinoPinVoltageSource(0, A0, -5.0f, 5.0f, true, true));
+        parameter_manager->addVoltageSource(new ArduinoPinVoltageSource(1, A1, -5.0f, 5.0f, true, true));
+        parameter_manager->addVoltageSource(new ArduinoPinVoltageSource(2, A2, -5.0f, 5.0f, true, true));
     #endif
 
     parameter_manager->auto_init_devices();
@@ -58,9 +63,9 @@ void setup_parameter_inputs() {
 
     // initialise the voltage source inputs
     // NOTE: for some reason inputs 1 + 2 (B + C) seem to be swapped on this revision of the hardware; so swap them here in software.
-    VoltageParameterInput *vpi1 = new VoltageParameterInput((char*)"A", "CV Inputs", parameter_manager->voltage_sources->get(0));
-    VoltageParameterInput *vpi2 = new VoltageParameterInput((char*)"B", "CV Inputs", parameter_manager->voltage_sources->get(2));
-    VoltageParameterInput *vpi3 = new VoltageParameterInput((char*)"C", "CV Inputs", parameter_manager->voltage_sources->get(1));
+    VoltageParameterInput *vpi1 = new VoltageParameterInput((char*)"A", "CV Inputs", parameter_manager->voltage_sources->get(0), 0.005, BIPOLAR);
+    VoltageParameterInput *vpi2 = new VoltageParameterInput((char*)"B", "CV Inputs", parameter_manager->voltage_sources->get(1), 0.005, BIPOLAR);
+    VoltageParameterInput *vpi3 = new VoltageParameterInput((char*)"C", "CV Inputs", parameter_manager->voltage_sources->get(2), 0.005, BIPOLAR);
     
     //vpi3->input_type = UNIPOLAR;
     // todo: set up 1v/oct inputs to map to MIDI source_ids...
