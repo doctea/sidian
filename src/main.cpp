@@ -36,6 +36,8 @@
     #include "cv_output.h"
 #endif
 
+#include "sid/sid6581.h"
+
 #include "outputs/output_processor.h"
 
 #include "core_safe.h"
@@ -248,6 +250,29 @@ void setup() {
     #ifdef LOAD_CALIBRATION_ON_BOOT
         parameter_manager->load_all_calibrations();
     #endif
+    while(!Serial) {}
+    Serial.println("SERIAL CONNECTED!");
+
+    Serial.println(F("\tInitialising sid.."));
+    sid.setup();
+    Serial.println(F("\tsid initialised!"));
+    Serial.flush();
+
+    while(1) {
+        Serial.println("Test loop...");
+        Serial.flush();
+        sid.setVolume(15);
+        sid.voice[0].pulseOn();
+        sid.voice[1].pulseOn();
+        sid.voice[2].pulseOn();
+        sid.voice[0].sawOn();
+        sid.voice[1].sawOn();
+        sid.voice[2].sawOn();
+
+        sid.test_tones();
+    }
+
+    sid.allGateOn();  // turn on all gates so that we can use this like an oscillator
 
     started = true;
 
@@ -256,7 +281,7 @@ void setup() {
     #endif
 
     #ifdef ENABLE_SCREEN
-    menu->set_last_message((String("Started up, free RAM is ") + String(freeRam())).c_str());
+        menu->set_last_message((String("Started up, free RAM is ") + String(freeRam())).c_str());
     #endif
 
     Debug_printf("at end of setup(), free RAM is %u\n", freeRam());
