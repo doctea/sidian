@@ -4,6 +4,8 @@
 // code to actually talk to the SID chip using the MCU's ports etc
 // in theory this is where we'd replace it with shift registers et al
 
+#include <RingBuf.h>
+
 #include "RP2040_PWM.h"
 extern RP2040_PWM* PWM_Instance;
 
@@ -32,6 +34,12 @@ class Socket {
 
     // for tracking what has previously been written to this chip so we don't waste time duplicating data
     byte last_written[sizeof(sidmap)];
+
+    struct event {
+        uint8_t addr;
+        uint8_t data;
+    };
+    RingBuf<event, 30> comBuffer;
 
     bool debug = false;
 
@@ -147,15 +155,29 @@ class Socket {
         if ((byte)last_written[addr]!=data) {
             //if (debug) 
             Serial.printf("Writing to\t%i\t[%02x]: " BYTE_TO_BINARY_PATTERN "\t[%02X] :: %s\n", addr, addr, BYTE_TO_BINARY(data), data, msg);
-            setAddress(addr);
+            /*setAddress(addr);
             setData(data);
-            send();
+            send();*/
+            comBuffer.push({addr,data});
         } else {
             // value isn't different from what was previously sent
             //Serial.printf("Not writing to\t%i\t[%02x]: %02x matches %02x\n", addr, last_written[addr], data);
         }
         last_written[addr] = data;
         //delayMicroseconds(2);
+    }
+
+    void process() {
+        while (!comBuffer.isEmpty()) {
+            event e;
+            comBuffer.pop(e);
+
+            //Serial.printf("Popped and sending addr=%u, data=%u\n", e.addr, e.data);
+
+            setAddress(e.addr);
+            setData(e.data);
+            this->send();
+        }
     }
 
     private:
@@ -207,5 +229,6 @@ class Socket {
         }
 
 };
+
 
 #endif

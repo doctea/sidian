@@ -38,6 +38,12 @@
 
 #include "sid/sid6581.h"
 
+bool repeating_timer_callback(__unused struct repeating_timer *t) {
+    sid.process();
+    return true;
+}
+struct repeating_timer sid_timer;
+
 #include "outputs/output_processor.h"
 
 #include "core_safe.h"
@@ -90,6 +96,13 @@ void auto_handle_start_wrapper() {
     auto_handle_start();
 }
 
+void handle_note_on(midi::Channel, byte note, byte velocity) {
+    sid.playNote(0, note);
+}
+void handle_note_off(midi::Channel, byte note, byte velocity) {
+    sid.stopNote(0, note);
+}
+
 #ifdef WAIT_FOR_SERIAL
     #define Debug_println(X)    if(Serial)Serial.println(X)
     #define Debug_printf(...)   if(Serial)Serial.printf(__VA_ARGS__)
@@ -124,6 +137,8 @@ void setup() {
     #endif
 
     setup_midi();
+    USBMIDI.setHandleNoteOn(&handle_note_on);
+    USBMIDI.setHandleNoteOff(&handle_note_off);    
     Debug_printf("after setup_midi(), free RAM is %u\n", freeRam());
     #ifdef USE_TINYUSB
         setup_usb();
@@ -250,29 +265,35 @@ void setup() {
     #ifdef LOAD_CALIBRATION_ON_BOOT
         parameter_manager->load_all_calibrations();
     #endif
-    while(!Serial) {}
-    Serial.println("SERIAL CONNECTED!");
 
+    while(!Serial) {}
+
+    Serial.println("SERIAL CONNECTED!");
+    
     Serial.println(F("\tInitialising sid.."));
     sid.setup();
     Serial.println(F("\tsid initialised!"));
     Serial.flush();
 
-    while(1) {
-        Serial.println("Test loop...");
-        Serial.flush();
-        sid.setVolume(15);
-        sid.voice[0].pulseOn();
-        sid.voice[1].pulseOn();
-        sid.voice[2].pulseOn();
-        sid.voice[0].sawOn();
-        sid.voice[1].sawOn();
-        sid.voice[2].sawOn();
+    Serial.printf("starting timer..");
+    add_repeating_timer_us(2, repeating_timer_callback, NULL, &sid_timer);
+    Serial.printf("timer started!");
 
-        sid.test_tones();
-    }
+    // while(1) {
+    //     Serial.println("Test loop...");
+    //     Serial.flush();
+    //     sid.setVolume(15);
+    //     sid.voice[0].pulseOn();
+    //     sid.voice[1].pulseOn();
+    //     sid.voice[2].pulseOn();
+    //     sid.voice[0].sawOn();
+    //     sid.voice[1].sawOn();
+    //     sid.voice[2].sawOn();
 
-    sid.allGateOn();  // turn on all gates so that we can use this like an oscillator
+    //     sid.test_tones();
+    // }
+
+    //sid.allGateOn();  // turn on all gates so that we can use this like an oscillator
 
     started = true;
 

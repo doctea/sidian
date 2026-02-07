@@ -83,6 +83,14 @@ class Voice {
         curNote = 0;
     }
 
+    void stopNote(byte note) {
+        if (note==curNote) {
+            gateOff();
+            curNote = 0;
+        }
+    }
+
+
     // oscillator options
     void toggleSync(bool state) {
         if (state) syncOn(); else syncOff();
@@ -394,6 +402,10 @@ class SID6581 {
 
     byte get_base_register_address() {
         return 0;
+    }
+
+    volatile void process() {
+        hw.process();
     }
 
     void waitCycle(void) {
@@ -763,6 +775,9 @@ class SID6581 {
         voice[vn].playNote(note);
     }
     void stopNote(byte vn) {
+        voice[vn].stopNote();
+    }
+    void stopNote(byte vn, byte note) {
         voice[vn].stopNote();
     }
 
