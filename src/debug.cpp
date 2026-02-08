@@ -35,7 +35,7 @@
     if (Serial) Serial.print(F("Free RAM is "));
     if (Serial) Serial.println(freeRam());
   }
-#elif defined(ARDUINO_ARCH_RP2040)
+#elif defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_RP2040)
   #include "pico/stdlib.h"  // not sure if we need this?
   #include "pico/bootrom.h" // needed for reset_usb_boot
 

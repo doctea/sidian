@@ -1,5 +1,8 @@
-#ifndef HARDWARE__INCLUDED
-#define HARDWARE__INCLUDED
+#pragma once
+
+// #ifdef USE_ATOMIC
+//     #include "SimplyAtomic.h"
+// #endif
 
 // code to actually talk to the SID chip using the MCU's ports etc
 // in theory this is where we'd replace it with shift registers et al
@@ -152,17 +155,22 @@ class Socket {
     // write a register to the SID
     void write(byte addr, byte data, const char *msg = "") {
         //if (debug) 
-        if ((byte)last_written[addr]!=data) {
+        //if ((byte)last_written[addr]!=data) {
             //if (debug) 
-            Serial.printf("Writing to\t%i\t[%02x]: " BYTE_TO_BINARY_PATTERN "\t[%02X] :: %s\n", addr, addr, BYTE_TO_BINARY(data), data, msg);
+            #ifdef USE_ATOMIC
+            ATOMIC_BLOCK()
+            #endif
+            {
+                Serial.printf("Writing to\t%i\t[%02x]: " BYTE_TO_BINARY_PATTERN "\t[%02X] :: %s\n", addr, addr, BYTE_TO_BINARY(data), data, msg);
+            }
             /*setAddress(addr);
             setData(data);
             send();*/
             comBuffer.push({addr,data});
-        } else {
-            // value isn't different from what was previously sent
-            //Serial.printf("Not writing to\t%i\t[%02x]: %02x matches %02x\n", addr, last_written[addr], data);
-        }
+        // } else {
+        //     // value isn't different from what was previously sent
+        //     //Serial.printf("Not writing to\t%i\t[%02x]: %02x matches %02x\n", addr, last_written[addr], data);
+        // }
         last_written[addr] = data;
         //delayMicroseconds(2);
     }
@@ -230,5 +238,3 @@ class Socket {
 
 };
 
-
-#endif

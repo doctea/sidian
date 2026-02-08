@@ -6,12 +6,13 @@
 #define MAX_CUTOFF      4095    // 12 bit cutoff
 #define MAX_RESONANCE   15      // 4-bit resonance
 #define MAX_VOLUME      15      // 4-bit volume
-#define MAX_ATTACK      15
-#define MAX_DECAY       15
-#define MAX_SUSTAIN     15
-#define MAX_RELEASE     15
+#define MAX_ATTACK      15      // 4-bit attack
+#define MAX_DECAY       15      // 4-bit decay
+#define MAX_SUSTAIN     15      // 4-bit sustain
+#define MAX_RELEASE     15      // 4-bit release
+#define MAX_PULSEWIDTH  4095    // 12-bit pulsewidth
 
-#define MAX_FREQ sidinote[126]
+#define MAX_FREQ sidinote[127]
 
 struct voicemap {
     byte FREQLO;    // voice frequency low byte
@@ -51,7 +52,8 @@ enum ENVOSC {
     noiseMask= 0b10000000,  // This output is a random signal which changes at the frequency of oscillator
 };
 
-//Bits 4-7 of this register (RES0-RES3) control the resonance of the filter. There are 16 resonance settings ranging linearly from no resonance (0) to maximum resonance (15 or $F).
+//Bits 4-7 of this register (RES0-RES3) control the resonance of the filter. 
+// There are 16 resonance settings ranging linearly from no resonance (0) to maximum resonance (15 or $F).
 //Bits 0-3 determine which signals will be routed through the Filter:
 enum RESFILT {
     filt1   =   0b00000001, // set to filter voice 1 

@@ -37,6 +37,7 @@
 #endif
 
 #include "sid/sid6581.h"
+#include "sid/sid_parameters.h"
 
 bool repeating_timer_callback(__unused struct repeating_timer *t) {
     sid.process();
@@ -210,22 +211,51 @@ void setup() {
     #endif
 
     #if defined(ENABLE_PARAMETERS) && defined(ENABLE_EUCLIDIAN)
-        //Serial.println("..calling sequencer.getParameters()..");
-        LinkedList<FloatParameter*> *params = sequencer->getParameters();
-        Debug_printf("after setting up sequencer parameters, free RAM is %u\n", freeRam());
+    //Serial.println("..calling sequencer.getParameters()..");
+    LinkedList<FloatParameter*> *params = sequencer->getParameters();
+    Debug_printf("after setting up sequencer parameters, free RAM is %u\n", freeRam());
     #endif
-
+    
     #if defined(ENABLE_SCREEN) && defined(ENABLE_PARAMETERS)
-        //menu->add_page("Parameter Inputs");
-        Debug_printf("before setup_parameter_menu(), free RAM is %u\n", freeRam());
-        setup_parameter_menu();
-        Debug_printf("after setup_parameter_menu(), free RAM is %u\n", freeRam());
+    //menu->add_page("Parameter Inputs");
+    Debug_printf("before setup_parameter_menu(), free RAM is %u\n", freeRam());
+    setup_parameter_menu();
+    Debug_printf("after setup_parameter_menu(), free RAM is %u\n", freeRam());
     #endif
-
+    
     #if defined(ENABLE_PARAMETERS) && defined(ENABLE_CV_INPUT)
         setup_cv_pitch_inputs();
         Debug_printf("after setup_cv_pitch_inputs(), free RAM is %u\n", freeRam());
     #endif
+        
+    ////// INITIALISE SID STUFF..
+    Serial.println(F("\tInitialising sid.."));
+    sid.setup();
+    Serial.println(F("\tsid initialised!"));
+    Serial.flush();
+
+    Serial.printf("starting timer..");
+    add_repeating_timer_us(2, repeating_timer_callback, NULL, &sid_timer);
+    Serial.printf("timer started!");
+    
+    setup_sid_parameters();
+    setup_sid_parameter_menu();
+
+    // while(1) {
+    //     Serial.println("Test loop...");
+    //     Serial.flush();
+    //     sid.setVolume(15);
+    //     sid.voice[0].pulseOn();
+    //     sid.voice[1].pulseOn();
+    //     sid.voice[2].pulseOn();
+    //     sid.voice[0].sawOn();
+    //     sid.voice[1].sawOn();
+    //     sid.voice[2].sawOn();
+
+    //     sid.test_tones();
+    // }
+
+    //sid.allGateOn();  // turn on all gates so that we can use this like an oscillator
 
     #ifdef ENABLE_PARAMETERS
         parameter_manager->setDefaultParameterConnections();
@@ -265,35 +295,6 @@ void setup() {
     #ifdef LOAD_CALIBRATION_ON_BOOT
         parameter_manager->load_all_calibrations();
     #endif
-
-    while(!Serial) {}
-
-    Serial.println("SERIAL CONNECTED!");
-    
-    Serial.println(F("\tInitialising sid.."));
-    sid.setup();
-    Serial.println(F("\tsid initialised!"));
-    Serial.flush();
-
-    Serial.printf("starting timer..");
-    add_repeating_timer_us(2, repeating_timer_callback, NULL, &sid_timer);
-    Serial.printf("timer started!");
-
-    // while(1) {
-    //     Serial.println("Test loop...");
-    //     Serial.flush();
-    //     sid.setVolume(15);
-    //     sid.voice[0].pulseOn();
-    //     sid.voice[1].pulseOn();
-    //     sid.voice[2].pulseOn();
-    //     sid.voice[0].sawOn();
-    //     sid.voice[1].sawOn();
-    //     sid.voice[2].sawOn();
-
-    //     sid.test_tones();
-    // }
-
-    //sid.allGateOn();  // turn on all gates so that we can use this like an oscillator
 
     started = true;
 
@@ -408,13 +409,13 @@ void loop() {
         ticked = update_clock_ticks();
     }
 
-    if (ticked && ticks % 96 == 0) {
+    /*if (ticked && ticks % 96 == 0) {
         Serial.printf("loop() at tick %u\n", ticks); Serial.flush();
         Serial.printf("Button A => %i (duration %u ms)\n", pushButtonA.isPressed(), pushButtonA.currentDuration());
         Serial.printf("Button B => %i (duration %u ms)\n", pushButtonB.isPressed(), pushButtonB.currentDuration());
         Serial.printf("Button C => %i (duration %u ms)\n", pushButtonC.isPressed(), pushButtonC.currentDuration());
         Serial.flush();
-    }
+    }*/
 
     #ifdef USE_UCLOCK
         // do_tick is called from interrupt via uClock, so we don't need to do it manually here

@@ -1,12 +1,11 @@
-#ifndef SID6581__INCLUDED
-#define SID6581__INCLUDED
+#pragma once
 
 #include <Arduino.h>
 
+#include "midi_helpers.h"
+
 #include "hardware.h"
-
 #include "myfreqs.h"
-
 #include "sidspec.h"
 
 #define F(X) X
@@ -19,6 +18,8 @@
 // get chip register offset
 #define CREG(X)     (get_base_register_address() + offsetof(sidmap,X))
 
+#define NUM_VOICES 3
+
 extern bool debug_sid;
 
 class Voice {
@@ -28,11 +29,11 @@ class Voice {
     byte offset = 0;
 
     bool playing = false;
-    byte curNote = 0;
+    int8_t curNote = 0;
 
     byte control = 16;
-    byte attack, decay, sustain, release;
-    double lastFrequency, curFrequency = 0;
+    byte attack = 0, decay = MAX_DECAY/2, sustain = MAX_SUSTAIN, release = MAX_RELEASE/2;
+    float lastFrequency, curFrequency = 0;
 
     public:
 
@@ -68,9 +69,14 @@ class Voice {
     }
 
     // playing notes / frequency
-    void playNote(byte note) {
-        double freq = getFrequencyForNote(note);
-        Serial.printf(F("voice %i :: note %i: changing freq to %i (gap of %i)\n"), voice_number, note, (uint16_t) freq, (uint16_t) freq-lastFrequency);
+    void playNote(int8_t note) {
+        if (!is_valid_note(note)) {
+            Serial.printf("Warning: sid voice %i asked to play invalid note %i!\n", this->voice_number, note);
+            return;
+        }
+
+        float freq = getFrequencyForNote(note);
+        Serial.printf(F("voice %i :: note %i\t[%s]:\tchanging freq to %i (gap of %i)\n"), voice_number, note, get_note_name_c(note), (uint16_t) freq, (uint16_t) freq-lastFrequency);
         lastFrequency = freq;
         curNote = note;
         setFrequency(freq, true);
@@ -80,14 +86,12 @@ class Voice {
 
     void stopNote() {
         gateOff();
-        curNote = 0;
+        curNote = NOTE_OFF;
     }
 
     void stopNote(byte note) {
-        if (note==curNote) {
-            gateOff();
-            curNote = 0;
-        }
+        gateOff();
+        curNote = NOTE_OFF;
     }
 
 
@@ -186,7 +190,7 @@ class Voice {
         return (mask & control) == mask;
     }
 
-    void setOsc(double oscMode) {
+    void setOsc(float oscMode) {
         byte o = oscMode*15;
         setOscMask(o<<4);
     }
@@ -197,8 +201,9 @@ class Voice {
         hw->write(VREG(CR), control, (char*)"CR");
     }
 
-    double pulsewidth_modulate = 0.0f;
+    float pulsewidth_modulate = 0.0f;
     void setPulseWidth(uint16_t pw, bool immediate = true) {
+        pw = constrain(pw, 0, MAX_PULSEWIDTH);
         this->pulseWidth = pw & 0b0000111111111111;
         if (immediate) updatePulseWidth(); 
     }
@@ -213,25 +218,25 @@ class Voice {
         hw->write(VREG(PWHI), (uint8_t) ((pw & 0b0000111111111111) >> 8), (char*)"PWHI");
         hw->write(VREG(PWLO), (uint8_t) (pw & 0b0000000011111111), (char*)"PWLO");
     }
-    void modulatePulseWidth(double normal) {
+    void modulatePulseWidth(float normal) {
         pulsewidth_modulate = normal;
         //if (debug) Serial.printf("Modulating pulsewidths by %i\n", (uint16_t)(pulsewidth_modulate*(4095/2)));
         updatePulseWidth();
     }
-    double getModulatedPulseWidth() {
+    float getModulatedPulseWidth() {
         return this->pulsewidth_modulate;
     }
 
-    double pitch_modulate = 0.0f;
-    void modulatePitch(double normal) {
+    float pitch_modulate = 0.0f;
+    void modulatePitch(float normal) {
         this->pitch_modulate = normal;
         updateVoiceFrequency();
     }
-    double getPitchMod() {
+    float getPitchMod() {
         return this->pitch_modulate;
     }
 
-    double get_modulated_frequency(double frequency, double modulation_normal) {
+    float get_modulated_frequency(float frequency, float modulation_normal) {
         if (modulation_normal == 0.0)
             return frequency;
 
@@ -246,27 +251,27 @@ class Voice {
                 Here a = 440, c = 19.56 and b is what we want to know.
 
                 440*2^(19.56/1200) = 444.9994 Hz.*/
-            //double frequency_target = (pow(frequency, 1.0/12.0));
-            double frequency_target = frequency * (pow(2.0,(modulation_normal*100.0)/1200.0));
+            //float frequency_target = (pow(frequency, 1.0/12.0));
+            float frequency_target = frequency * (pow(2.0,(modulation_normal*100.0)/1200.0));
             //Serial.printf("For frequency %i, found what should be frequency one semitone above, ==%i\n", (uint32_t) frequency, (uint32_t) frequency_target);
             return (frequency_target - frequency) * modulation_normal;
         } else {
             // get modulation vs the note down from frequency
             //modulation_normal = 1.0 - (modulation_normal*-1.0);
             // almost certainly not the correct maths
-            //double frequency_target = frequency_target - (pow(frequency, 1.0/12.0));
+            //float frequency_target = frequency_target - (pow(frequency, 1.0/12.0));
             //return frequency - ((frequency - frequency_target) * modulation_normal);
             //TODO: almost certainly wrong
-            double frequency_target = frequency + (frequency - frequency * (pow(2.0,(modulation_normal*100.0)/1200.0)));
+            float frequency_target = frequency + (frequency - frequency * (pow(2.0,(modulation_normal*100.0)/1200.0)));
             return (frequency_target - frequency) * modulation_normal;
         }
     }
 
-    double frequency_multiplier = 1.0f;
-    void setFrequencyMultiplier(double frequency_multiplier) {
+    float frequency_multiplier = 1.0f;
+    void setFrequencyMultiplier(float frequency_multiplier) {
         this->frequency_multiplier = frequency_multiplier;
     }
-    double getFrequencyMultiplier() {
+    float getFrequencyMultiplier() {
         return this->frequency_multiplier;
     }
 
@@ -279,20 +284,20 @@ class Voice {
         hw->write(VREG(FREQHI), (uint8_t) (0b0000000011111111 & (sid_frequency >> 8)), (char*)"FREQHI");
     }
     
-    // frequency calculation, either directly from passed-in double (eg from CV) or from a MIDI note
-    double get_frequency_for_pitch(byte pitch) {
-        return sidinote[pitch+1];   // hmmm needs to be +1, why?
+    // frequency calculation, either directly from passed-in float (eg from CV) or from a MIDI note
+    float get_sid_frequency_for_pitch(byte pitch) {
+        return sidinote[pitch+1];   // TODO: hmmm needs to be +1, why? TODO: recheck this!
     }
-    double getFrequencyForNote(byte note) {
-        return get_frequency_for_pitch(note);
+    float getFrequencyForNote(byte note) {
+        return get_sid_frequency_for_pitch(note);
     }
-    uint16_t getSIDFrequencyForFrequency(double frequency) {
+    uint16_t getSIDFrequencyForFrequency(float frequency) {
         return frequency / 0.059604645; // MAGIC from http://www.sidmusic.org/sid/sidtech2.html
     }
-    void setFrequency(double frequency) {
+    void setFrequency(float frequency) {
         this->setFrequency(frequency, true);
     }
-    void setFrequency(double frequency, bool immediate = true) {
+    void setFrequency(float frequency, bool immediate = true) {
         curFrequency = frequency;
         if (immediate) updateVoiceFrequency();
     }
@@ -309,30 +314,60 @@ class Voice {
         if (immediate) updateControl();
     }
 
+    void setAttack(uint8_t attack) {
+        this->setAttack(attack, true);
+    }
     // attack and decay are packed into same byte
-    void setAttack(byte attack, bool immediate = true) {
+    void setAttack(uint8_t attack, bool immediate = true) {
+        attack = constrain(attack, 0, MAX_ATTACK);
         this->attack = attack & 0b00001111;
         if (immediate) updateAttackDecay();
     }
-    void setDecay(byte decay, bool immediate = true) {
+    void setDecay(uint8_t attack) {
+        this->setDecay(attack, true);
+    }
+    void setDecay(uint8_t decay, bool immediate = true) {
+        decay = constrain(decay, 0, MAX_DECAY);
         this->decay = decay & 0b00001111;
         if (immediate) updateAttackDecay();
     }
     void updateAttackDecay() {
         hw->write(VREG(AD), attack << 4 | decay, (char*)"AD");
     }
+
+    uint8_t getAttack() {
+        return this->attack;
+    }
+    uint8_t getDecay() {
+        return this->decay;
+    }
     
     // sustain and release are packed into same byte
-    void setSustain(byte sustain, bool immediate = true) {
+    void setSustain(uint8_t sustain) {
+        this->setSustain(sustain, true);
+    }
+    void setSustain(uint8_t sustain, bool immediate = true) {
+        sustain = constrain(sustain, 0, MAX_SUSTAIN);
         this->sustain = sustain & 0b00001111;
         if (immediate) updateSustainRelease();
     }
-    void setRelease(byte release, bool immediate = true) {
+    void setRelease(uint8_t sustain) {
+        this->setRelease(sustain, true);
+    }
+    void setRelease(uint8_t release, bool immediate = true) {
+        release = constrain(release, 0, MAX_RELEASE);
         this->release = release & 0b00001111;
         if (immediate) updateSustainRelease();
     }
     void updateSustainRelease() {
         hw->write(VREG(SR), sustain << 4 | release, (char*)"SR");
+    }
+
+    uint8_t getSustain() {
+        return this->sustain;
+    }
+    uint8_t getRelease() {
+        return this->release;
     }
 
     // helper function to set all ADSR params
@@ -350,7 +385,7 @@ class Voice {
 
     /*
     // untested realtime calculate of frequency for pitch
-    double calculate_frequency_for_pitch(byte pitch) {
+    float calculate_frequency_for_pitch(byte pitch) {
         int BASEFREQ = 440; //This is the Hz for the standard A note.
         int NOTE = pitch;	//This is the note relative to the standard A. 0 = standard A itself, -1 = G# etc. 
         int STEPS_PER_OCTAVE = 12;	//Normally we use 12 notes per octave.
@@ -392,7 +427,7 @@ class SID6581 {
         if (filter_bandpass & filter_type_mask) Serial.print(F("BP "));
         if (filter_highpass & filter_type_mask) Serial.print(F("HP "));
         Serial.println();
-        for (int i = 0; i < 3 ; i++) {
+        for (int i = 0; i < NUM_VOICES ; i++) {
             voice[i].printStatus();
         }
         Serial.println(F("-status-----"));
@@ -484,14 +519,21 @@ class SID6581 {
     byte resonance = MAX_RESONANCE / 2;
     byte filter_voices;
 
-    void setResonanceD(double resonance) {
-        this->setResonance((byte)(resonance * 15.0));
+    void setResonanceNormal(float resonance_normal) {
+        resonance_normal = constrain(resonance_normal, 0.0, 1.0);
+        this->setResonance((byte)(resonance_normal * (float)MAX_RESONANCE)); //, true);
     }
 
     // update RESONANCE and filter voice ON/OFF
-    void setResonance(byte value, bool immediate = true) {
+    void setResonance(uint8_t value) {
+        //this->setResonance(value, true);
         resonance = 0b00001111 & value; // turn into a 4-bit value
-        if (immediate) updateFilterVoice();
+        updateFilterVoice();
+    }
+    // void setResonance(int value, bool immediate = true) {
+    // }
+    uint8_t getResonance() {
+        return resonance;
     }
     void setFilterVoice(byte number, bool immediate = true) {
         filter_voices |= 1 << number;
@@ -553,14 +595,17 @@ class SID6581 {
         if (immediate) updateFilterType();
     }
     void updateFilterType() {
-        Serial.printf(F("updateFilterVoice with filter_type_mask [%02x] and volume [%02x]\n"), filter_type_mask, this->volume);
+        if (debug) Serial.printf(F("updateFilterVoice with filter_type_mask [%02x] and volume [%02x]\n"), filter_type_mask, this->volume);
         hw.write(CREG(MODEVOL), filter_type_mask | this->volume, (char*)"MODEVOL");
     }
 
     int cutoff = MAX_CUTOFF/2;
     float cutoff_modulation = 0.0f;
+    void setCutoff(uint16_t cutoff) {
+        this->setCutoff(cutoff, true);
+    }
     void setCutoff(uint16_t cutoff, bool immediate = true) {
-        //Serial.printf("Setting cutoff to %i", (cutoff));
+        cutoff = constrain(cutoff, 0, MAX_CUTOFF);
         this->cutoff = cutoff & 0b0000111111111111;
         if (immediate) updateCutoff();
     }
@@ -569,46 +614,48 @@ class SID6581 {
     }
     void updateCutoff() {
         int16_t co = getCutoff();
-        int16_t int_modulation = cutoff_modulation * (4096/2);
-        co += int_modulation;
+        // int16_t int_modulation = cutoff_modulation * (4096/2);
+        // co += int_modulation;
         hw.write(CREG(FCHI), co >> 8, (char*)"FCHI");
         hw.write(CREG(FCLO), 0b0000000000001111 & co, (char*)"FCLO");
     }
     void modulateCutoff(float normal_modulation) {  // -1.0 to 1.0
         cutoff_modulation = normal_modulation;
     }
-    void setCutoff(double cutoff) {
-        this->setCutoff((uint16_t)((double)cutoff * MAX_CUTOFF));
+    void setCutoff(float cutoff) {
+        cutoff = constrain(cutoff, 0.0, 1.0);
+        this->setCutoff((uint16_t)((float)cutoff * MAX_CUTOFF), true);
     }
 
     float getAllPulseWidths() {
         return voice[0].pulseWidth / 4095.0f;
     }
     void setAllPulseWidths(float normal) {
+        normal = constrain(normal, 0.0, 1.0);
         int pw_value = normal*4095.0f;
         //Serial.printf("setAllPulseWidths() setting to %i\n", pw_value);
-        for (int i = 0 ; i < 3 ; i++) {
+        for (int i = 0 ; i < NUM_VOICES ; i++) {
             voice[i].setPulseWidth(pw_value);
         }
     }
     float pulsewidth_modulation = 0.0f;
-    void modulateAllPulseWidths(double normal) {
+    void modulateAllPulseWidths(float normal) {
         /*Serial.print("sid#modulateAllPulseWidths(");
         Serial.print(normal);
         Serial.println(")");*/
         pulsewidth_modulation = normal;
-        for (int i = 0 ; i < 3 ; i++) {
+        for (int i = 0 ; i < NUM_VOICES ; i++) {
             voice[i].modulatePulseWidth(normal);
         }
     }
 
     float pitch_modulation = 0.0f;
-    void modulateAllPitches(double normal) {
+    void modulateAllPitches(float normal) {
         /*Serial.print("sid#modulateAllPulseWidths(");
         Serial.print(normal);
         Serial.println(")");*/
         pitch_modulation = normal;
-        for (int i = 0 ; i < 3 ; i++) {
+        for (int i = 0 ; i < NUM_VOICES ; i++) {
             voice[i].modulatePitch(normal);
         }
     }
@@ -622,24 +669,24 @@ class SID6581 {
         voice[2].updateAll();
     }
 
-    void setAllFrequency(double frequency) {
+    void setAllFrequency(float frequency) {
         /*Serial.print("sid#setAllFrequency(");
         Serial.print(frequency);
         Serial.println(")");*/
-        for (int i = 0 ; i < 3 ; i++) 
+        for (int i = 0 ; i < NUM_VOICES ; i++) 
             voice[i].setFrequency(frequency,true);
     }
     void allGateOn() {
-        for (int i = 0 ; i < 3 ; i++) 
+        for (int i = 0 ; i < NUM_VOICES ; i++) 
             voice[i].gateOn();
     }
     void allGateOff() {
-        for (int i = 0 ; i < 3 ; i++) 
+        for (int i = 0 ; i < NUM_VOICES ; i++) 
             voice[i].gateOff();
     }
 
     void setup() {
-        while (!Serial) {}
+        //while (!Serial) {}
 
         Serial.println(F("\n=================sid setup================="));
         Serial.flush();
@@ -735,14 +782,14 @@ class SID6581 {
 
     void tone(unsigned short i) {
         byte voice3_base = 14;
-        #define FREQLO 0
-        #define FREQHI 1
-        #define CR 4
+        const int _FREQLO = 0;
+        const int _FREQHI = 1;
+        const int _CR = 4;
         hw.write(0+voice3_base,i,           "tone:voice3_base");
-        hw.write(FREQHI+voice3_base,i>>8,   "tone:voice3_freqhi");
-        hw.write(CR+voice3_base,17,         "tone:cr");
+        hw.write(_FREQHI+voice3_base,i>>8,   "tone:voice3_freqhi");
+        hw.write(_CR+voice3_base,17,         "tone:cr");
         delay(200);
-        hw.write(CR+voice3_base,16,         "tone:cr");
+        hw.write(_CR+voice3_base,16,         "tone:cr");
 
         /*voice[3].setFrequency(i);
         voice[3].triOn();
@@ -784,5 +831,3 @@ class SID6581 {
 };
 
 extern SID6581 sid;
-
-#endif
