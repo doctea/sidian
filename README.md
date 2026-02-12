@@ -1,5 +1,37 @@
 # sidian
 
+## TODO
+
+### Software
+
+- trigger voices from gate inputs
+- nicer UI
+- presets
+  - save
+  - load
+- set default values on chip setup + set proper parameter values
+- all SID features
+  - permanently latch gate on
+  - volume control (maybe effective to use with external envelope?)
+- c64 colours and UI
+- properly sync bus + clock?
+- triggerable envelopes
+
+- make ARMSID configuration so can choose sid version, enable digifix, etc..
+
+### Hardware/inputs
+
+- get some DG408s? to use as multiplexors
+  - breadboard these + write software to multiplex many inputs
+- setup gate inputs for triggering voices, LFOs, etc
+- find a slightly lower resolution screen to use in order to keep the speed up (320x200 = 64 kilopixels seems to give a respectable and smooth-feeling 13-15fps)
+- add dedicated buttons for switching presets, triggering gates, presets, playability..
+- add dedicated pots?
+- add an extra encoder (requires 3 pins per encoder?) 
+- add i2c bus for expansions 
+- external audio input
+
+# Pinouts
 
 ## Breadboard pins
 
