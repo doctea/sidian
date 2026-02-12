@@ -126,7 +126,7 @@ void setup_sid_parameters() {
     param_filter_cutoff.initialise_values(0, MAX_CUTOFF);
     param_filter_cutoff.connect_input(
         parameter_manager->getInputForName("LFO Sync"),
-        100.0
+        1.0
     );
     param_filter_resonance.initialise_values(0, MAX_RESONANCE);
 
