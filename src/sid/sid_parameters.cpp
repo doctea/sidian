@@ -10,6 +10,7 @@
 #include "mymenu.h"
 #include "mymenu_items/ParameterMenuItems.h"
 #include "mymenu_items/ToggleMenuItems.h"
+#include "menuitems_widget.h"
 
 #include "LinkedList.h"
 
@@ -170,6 +171,124 @@ void setup_sid_parameter_menu() {
     menu->add_page("SID parameters");
 
     menu->add(new MenuItem("testing..."));
+
+    SubMenuItemColumns *test_menu = new SubMenuItemColumns("Test menu", 6);
+    test_menu->add(new MenuItem("Test 1"));
+    test_menu->add(new MenuItems_Widget("Widget 1", new Icon( 
+        (const uint8_t[]){
+            0b11111111, 
+            0b10000001, 
+            0b10111101, 
+            0b10011001, 
+            0b10011001, 
+            0b10011001, 
+            0b11011011, 
+            0b11111111
+        }, 8, 8), 32, 32));
+    test_menu->add(new MenuItems_Widget("Widget 2", new Icon( 
+        (const uint8_t[]){
+            0b11111111, 
+            0b10000001, 
+            0b10111101, 
+            0b10100101, 
+            0b10100101, 
+            0b10111101, 
+            0b10000001, 
+            0b11111111
+        }, 8, 8), 32, 32));
+    // Waveform / function icons
+    test_menu->add(new MenuItems_Widget("Sawtooth", new Icon(
+        (const uint8_t[]){
+            0b00000001,
+            0b00000011,
+            0b00000111,
+            0b00001111,
+            0b00011111,
+            0b00111111,
+            0b01111111,
+            0b11111111
+        }, 8, 8), 32, 32));
+
+    test_menu->add(new MenuItems_Widget("Triangle", new Icon(
+        (const uint8_t[]){
+            0b00010000,
+            0b00111000,
+            0b01111100,
+            0b01111111,
+            0b01111111,
+            0b00111110,
+            0b00111000,
+            0b00010000
+        }, 8, 8), 32, 32));
+
+    test_menu->add(new MenuItems_Widget("Pulse/Square", new Icon(
+        (const uint8_t[]){
+            0b00110011,
+            0b00110011,
+            0b00110011,
+            0b00110011,
+            0b00110011,
+            0b00110011,
+            0b00110011,
+            0b00110011
+        }, 8, 8), 32, 32));
+
+    test_menu->add(new MenuItems_Widget("White Noise", new Icon(
+        (const uint8_t[]){
+            0b01010011,
+            0b01011010,
+            0b00111001,
+            0b10000100,
+            0b11100001,
+            0b10011110,
+            0b00101001,
+            0b01110110
+        }, 8, 8), 32, 32));
+
+    menu->add(test_menu);
+
+    test_menu = new SubMenuItemColumns("More icons", 6);
+
+    test_menu->add(new MenuItems_Widget("Sync", new Icon(
+        (const uint8_t[]){
+            0b00111000,
+            0b00101110,
+            0b01000011,
+            0b00000011,
+            0b00000011,
+            0b01000011,
+            0b00101110,
+            0b00111000
+        }, 8, 8), 32, 32));
+
+    test_menu->add(new MenuItems_Widget("Ring", new Icon(
+        (const uint8_t[]){
+            0b00111000,
+            0b01101110,
+            0b10000011,
+            0b10000001,
+            0b10000001,
+            0b10000011,
+            0b01101110,
+            0b00111000
+        }, 8, 8), 32, 32));
+
+    test_menu->add(new MenuItems_Widget("Filter", new Icon(
+        (const uint8_t[]){
+            0b11111111,
+            0b11000001,
+            0b11110001,
+            0b11110001,
+            0b11110001,
+            0b11100001,
+            0b11000001,
+            0b11000001
+        }, 8, 8), 32, 32));
+
+
+    menu->add(test_menu);
+
+    menu->remember_opened_page();
 
     /*Serial.println("Starting add available_parameters loop..."); Serial.flush();
     Serial.printf("Got %i parameters..\n", available_parameters.size());
